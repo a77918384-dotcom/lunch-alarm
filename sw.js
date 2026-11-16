@@ -1,10 +1,10 @@
 // 급식 시간 알라미 — 오프라인 실행용 서비스 워커
 // 앱 파일을 바꾸면 VERSION 숫자를 올려야 폰에 새 버전이 들어간다
-const VERSION = 'lunch-v4';
+const VERSION = 'lunch-v5';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-192.png', 'icons/maskable-512.png', 
-  'img/baesik.jpg', 'img/black.jpg', 'img/broccoli.jpg', 'img/brown.jpg', 'img/choco.jpg', 'img/creampuff.jpg', 'img/dakgangjeong.jpg', 'img/danmuji.jpg', 'img/donkatsu.jpg', 'img/eomukguk.jpg', 'img/gyul.jpg', 'img/jangjorim.jpg', 'img/jeyuk.jpg', 'img/jjajang.jpg', 'img/jjamppong.jpg', 'img/kimchi.jpg', 'img/kimchijjigae.jpg', 'img/kkakdugi.jpg', 'img/kongnamul.jpg', 'img/millet.jpg', 'img/miyeokguk.jpg', 'img/oimuchim.jpg', 'img/pudding.jpg', 'img/sigeumchi.jpg', 'img/sorghum.jpg', 'img/sundubu.jpg', 'img/tangsuyuk.jpg', 'img/yogurt.jpg', 
+  'img/baesik2.jpg', 'img/black.jpg', 'img/broccoli.jpg', 'img/brown.jpg', 'img/choco.jpg', 'img/creampuff.jpg', 'img/dakgangjeong.jpg', 'img/danmuji.jpg', 'img/donkatsu.jpg', 'img/eomukguk.jpg', 'img/gyul.jpg', 'img/jangjorim.jpg', 'img/jeyuk.jpg', 'img/jjajang.jpg', 'img/jjamppong.jpg', 'img/kimchi.jpg', 'img/kimchijjigae.jpg', 'img/kkakdugi.jpg', 'img/kongnamul.jpg', 'img/millet.jpg', 'img/miyeokguk.jpg', 'img/oimuchim.jpg', 'img/pudding.jpg', 'img/sigeumchi.jpg', 'img/sorghum.jpg', 'img/sundubu.jpg', 'img/tangsuyuk.jpg', 'img/yogurt.jpg', 
 ];
 
 self.addEventListener('install', e => {
