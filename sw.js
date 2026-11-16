@@ -1,6 +1,6 @@
 // 급식 시간 알라미 — 오프라인 실행용 서비스 워커
 // 앱 파일을 바꾸면 VERSION 숫자를 올려야 폰에 새 버전이 들어간다
-const VERSION = 'lunch-v2';
+const VERSION = 'lunch-v3';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/maskable-192.png', 'icons/maskable-512.png', 
