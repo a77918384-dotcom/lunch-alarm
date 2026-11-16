@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#e2552b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="급식알라미">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>급식 시간 알라미</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&family=IBM+Plex+Mono:wght@500;700&display=swap">
+<style>
+/* 레이아웃: 스테인리스 식판 한 장이 기기 몸체, 그 안의 화면을 옆으로 넘기는 3페이지 */
+:root {
+  --bg: #e9ecea;          /* 교실 책상 위 */
+  --fg: #22302b;
+  --muted: #5d6b65;
+  --steel-hi: #f4f6f5;
+  --steel-lo: #a9b2ae;
+  --steel-edge: #7f8a85;
+  --screen: #fbfaf5;      /* 화면 바탕: 식판 칸 안쪽 */
+  --screen-fg: #27312d;
+  --well: #dfe3df;        /* 식판 칸(눌린 홈) */
+  --well-shadow: #b8c0bc;
+  --accent: #e2552b;      /* 급식실 고무장갑 주황 */
+  --gold: #f2b631;
+  --ok: #2f8f5b;
+  --card: #ffffff;
+  --line: #cfd6d2;
+  --font-display: "Do Hyeon", "Malgun Gothic", sans-serif;
+  --font-body: "Gowun Dodum", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "Consolas", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161b19; --fg: #e4ebe7; --muted: #9aa8a1;
+    --steel-hi: #c9d0cc; --steel-lo: #6d7672; --steel-edge: #4f5753;
+    --screen: #1f2523; --screen-fg: #e8eee9; --well: #2a312e; --well-shadow: #121614;
+    --accent: #ff7a4d; --gold: #f5c451; --ok: #5cc68b; --card: #202725; --line: #36403c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161b19; --fg: #e4ebe7; --muted: #9aa8a1;
+  --steel-hi: #c9d0cc; --steel-lo: #6d7672; --steel-edge: #4f5753;
+  --screen: #1f2523; --screen-fg: #e8eee9; --well: #2a312e; --well-shadow: #121614;
+  --accent: #ff7a4d; --gold: #f5c451; --ok: #5cc68b; --card: #202725; --line: #36403c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 1140px; margin: 0 auto; display: grid; gap: 22px; }
+header.top { display: grid; gap: 2px; }
+header.top .eyebrow { font-size: 13px; letter-spacing: .08em; color: var(--muted); }
+header.top h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(30px, 6vw, 44px); line-height: 1.1; margin: 0; text-wrap: balance; }
+
+/* ── 기기 몸체: 스테인리스 식판 ── */
+.device {
+  border-radius: 34px;
+  padding: clamp(12px, 3vw, 22px);
+  background:
+    repeating-linear-gradient(90deg, rgba(255,255,255,.10) 0 1px, transparent 1px 3px),
+    linear-gradient(160deg, var(--steel-hi), var(--steel-lo) 55%, var(--steel-hi));
+  box-shadow: inset 0 2px 0 rgba(255,255,255,.6), inset 0 -3px 0 var(--steel-edge), 0 18px 40px -18px rgba(0,0,0,.45);
+  display: grid; gap: 10px;
+}
+.screen {
+  container-type: inline-size;
+  position: relative;
+  aspect-ratio: 4 / 3; max-width: 100%;
+  border-radius: 22px; overflow: hidden;
+  background: var(--screen); color: var(--screen-fg);
+  box-shadow: inset 0 0 0 2px var(--steel-edge), inset 0 6px 14px -6px rgba(0,0,0,.35);
+}
+.pages {
+  display: flex; height: 100%;
+  overflow-x: auto; overflow-y: hidden;
+  scroll-snap-type: x mandatory; scroll-behavior: smooth;
+  scrollbar-width: none; overscroll-behavior-x: contain;
+  cursor: grab;
+}
+.pages::-webkit-scrollbar { display: none; }
+.pages.dragging { scroll-snap-type: none; scroll-behavior: auto; cursor: grabbing; user-select: none; }
+.page { flex: 0 0 100%; height: 100%; scroll-snap-align: start; position: relative; padding: 3.2cqw; min-width: 0; }
+.status {
+  position: absolute; top: 2cqw; right: 3cqw; z-index: 3;
+  font-family: var(--font-num); font-size: 2.1cqw; color: var(--muted);
+  display: flex; gap: 1.6cqw; align-items: center; pointer-events: none;
+}
+
+/* ── 1페이지: 식판 칸 = AI 메뉴 이미지 ── */
+.tray {
+  height: 100%; display: grid; gap: 2.4cqw;
+  grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: 1fr 1.45fr;
+}
+.cell {
+  position: relative; border-radius: 3.4cqw; overflow: hidden;
+  background: var(--well);
+  box-shadow: inset 0 1.2cqw 1.6cqw -0.6cqw var(--well-shadow), inset 0 -0.4cqw 0 rgba(255,255,255,.35);
+  padding: 1.6cqw; min-width: 0;
+}
+.cell.rice { grid-column: 1 / 3; }
+.cell.soup { grid-column: 3 / 5; }
+.food {
+  position: absolute; inset: 1.4cqw; border-radius: 2.6cqw;
+  filter: saturate(1.05);
+}
+.cell.soup .food { border-radius: 50%; inset: 1.6cqw 10%; }
+.food.grain {
+  background:
+    radial-gradient(ellipse 60% 45% at 40% 35%, rgba(255,255,255,.55), transparent 70%),
+    radial-gradient(ellipse .5cqw .3cqw at 50% 50%, var(--c2) 0 70%, transparent 100%) 0 0 / 1.7cqw 2.3cqw,
+    radial-gradient(ellipse .4cqw .6cqw at 50% 50%, var(--c2) 0 60%, transparent 100%) .9cqw 1.1cqw / 2.1cqw 1.6cqw,
+    radial-gradient(ellipse .6cqw .35cqw at 50% 50%, var(--c3) 0 70%, transparent 100%) .4cqw .6cqw / 1.3cqw 1.9cqw,
+    radial-gradient(circle at 45% 40%, var(--c1), var(--c2) 140%);
+}
+.food.liquid {
+  background:
+    radial-gradient(circle at 30% 35%, var(--c3) 0 5%, transparent 6%),
+    radial-gradient(circle at 62% 58%, var(--c3) 0 6%, transparent 7%),
+    radial-gradient(circle at 45% 72%, var(--c3) 0 4%, transparent 5%),
+    radial-gradient(circle at 70% 30%, var(--c3) 0 4%, transparent 5%),
+    radial-gradient(ellipse 22% 10% at 38% 28%, rgba(255,255,255,.35), transparent),
+    radial-gradient(circle at 50% 50%, var(--c1), var(--c2) 75%);
+  box-shadow: inset 0 0 0 .8cqw rgba(255,255,255,.25);
+}
+.food.chunks {
+  background:
+    radial-gradient(circle at 28% 34%, var(--c1) 0 15%, transparent 16%),
+    radial-gradient(circle at 60% 30%, var(--c2) 0 17%, transparent 18%),
+    radial-gradient(circle at 42% 66%, var(--c1) 0 18%, transparent 19%),
+    radial-gradient(circle at 74% 64%, var(--c2) 0 15%, transparent 16%),
+    radial-gradient(circle at 20% 76%, var(--c2) 0 11%, transparent 12%),
+    radial-gradient(circle at 50% 50%, var(--c3), transparent 85%);
+}
+.food.strands {
+  background:
+    repeating-linear-gradient(35deg, transparent 0 .9cqw, var(--c2) .9cqw 1.4cqw, transparent 1.4cqw 2.3cqw),
+    repeating-linear-gradient(-28deg, transparent 0 1.2cqw, var(--c1) 1.2cqw 1.7cqw, transparent 1.7cqw 2.8cqw),
+    radial-gradient(circle at 50% 50%, var(--c3), transparent 80%);
+}
+.food.round {
+  background:
+    radial-gradient(circle at 36% 38%, rgba(255,255,255,.55) 0 4%, transparent 5%),
+    radial-gradient(circle at 50% 52%, var(--c1) 0 28%, var(--c2) 29% 33%, transparent 34%),
+    radial-gradient(circle at 50% 50%, var(--c3), transparent 80%);
+}
+.photo {
+  position: absolute; inset: 1.4cqw; width: calc(100% - 2.8cqw); height: calc(100% - 2.8cqw); max-width: none;
+  object-fit: cover; border-radius: 2.6cqw; z-index: 1;
+}
+.label {
+  position: absolute; left: 1.2cqw; bottom: 1.2cqw; z-index: 2;
+  font-family: var(--font-display); font-size: 2.3cqw; line-height: 1.2;
+  background: rgba(255,255,255,.88); color: #27312d;
+  padding: .4cqw 1.2cqw; border-radius: 99px; max-width: calc(100% - 2.4cqw);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.crown {
+  position: absolute; top: .8cqw; right: 1cqw; z-index: 2;
+  font-family: var(--font-display); font-size: 2cqw; color: #3a2a00;
+  background: var(--gold); padding: .2cqw 1cqw; border-radius: 99px;
+}
+.ai-tag {
+  position: absolute; left: 3.2cqw; top: 1.2cqw; z-index: 3;
+  font-size: 1.8cqw; letter-spacing: .06em; color: var(--muted);
+}
+
+/* ── 2페이지: 텍스트 메뉴 + 오늘의 킥 ── */
+.menu2 { height: 100%; display: grid; grid-template-columns: 1fr 1.15fr; gap: 3cqw; }
+.list { display: grid; align-content: start; gap: 1.1cqw; min-width: 0; padding-top: 2.4cqw; }
+.list h2, .timer h2 { font-family: var(--font-display); font-weight: 400; font-size: 3.6cqw; margin: 0 0 .6cqw; line-height: 1.1; }
+.row { display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 1cqw; font-size: 2.6cqw; }
+.row .al { font-family: var(--font-num); font-size: 1.6cqw; color: var(--muted); margin-left: .6cqw; }
+.row .score { font-family: var(--font-num); font-size: 2cqw; color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar { grid-column: 1 / -1; height: .7cqw; border-radius: 99px; background: var(--line); overflow: hidden; margin-top: -.2cqw; }
+.bar i { display: block; height: 100%; background: var(--muted); border-radius: 99px; }
+.row.is-kick .bar i { background: var(--accent); }
+.row.is-kick .name { color: var(--accent); font-weight: 700; }
+.foot { font-size: 1.6cqw; color: var(--muted); margin-top: .8cqw; line-height: 1.4; }
+
+.kick {
+  position: relative; border-radius: 3.4cqw; overflow: hidden; min-width: 0;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(255,255,255,.25) 0 10%, transparent 11%),
+    repeating-conic-gradient(from 0deg at 50% 55%, #ff6a3d 0 10deg, #ff8a4d 10deg 20deg);
+  color: #fff; display: grid; place-items: center; text-align: center; padding: 3cqw;
+}
+.kick .badge {
+  font-family: var(--font-display); font-size: 2.6cqw; letter-spacing: .1em;
+  background: #fff; color: #e2552b; padding: .4cqw 1.8cqw; border-radius: 99px;
+}
+.kick .dish {
+  font-family: var(--font-display); font-size: 8cqw; line-height: 1.05; margin: 1.6cqw 0 1cqw;
+  text-shadow: 0 .5cqw 0 #b8361a, 0 0 3cqw rgba(255,240,180,.8);
+  text-wrap: balance; animation: bob 2.4s ease-in-out infinite;
+}
+.kick .comment {
+  font-size: 2.2cqw; line-height: 1.45; background: rgba(0,0,0,.22);
+  padding: 1cqw 1.6cqw; border-radius: 1.6cqw; max-width: 92%;
+}
+.kick .who { display: block; font-size: 1.7cqw; opacity: .85; margin-top: .4cqw; }
+.spark { position: absolute; width: 3.6cqw; aspect-ratio: 1; background: #fff6c8;
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  animation: twinkle 1.8s ease-in-out infinite; }
+.spark:nth-of-type(1) { top: 8%; left: 10%; }
+.spark:nth-of-type(2) { top: 14%; right: 9%; width: 2.6cqw; animation-delay: .5s; }
+.spark:nth-of-type(3) { bottom: 10%; left: 14%; width: 2.4cqw; animation-delay: .9s; }
+.spark:nth-of-type(4) { bottom: 16%; right: 12%; animation-delay: 1.3s; }
+@keyframes twinkle { 0%,100% { transform: scale(.4) rotate(0); opacity: .4 } 50% { transform: scale(1.1) rotate(45deg); opacity: 1 } }
+@keyframes bob { 0%,100% { transform: translateY(0) rotate(-2deg) } 50% { transform: translateY(-1cqw) rotate(2deg) } }
+
+/* ── 3페이지: 학년·반별 타이머 ── */
+.timer { height: 100%; display: grid; grid-template-rows: auto 1fr auto; gap: 2cqw; padding-top: 2.4cqw; }
+.pick { display: flex; flex-wrap: wrap; gap: 2cqw; align-items: center; }
+.seg { display: flex; border: .3cqw solid var(--line); border-radius: 99px; overflow: hidden; }
+.seg button, .cls {
+  font-family: var(--font-display); font-size: 2.6cqw; color: var(--screen-fg);
+  background: transparent; border: 0; padding: .6cqw 2.2cqw; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--screen-fg); color: var(--screen); }
+.cls { border: .3cqw solid var(--line); border-radius: 99px; background: var(--screen); }
+.seg button:focus-visible, .cls:focus-visible, .ctrl button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.clock { display: grid; place-items: center; text-align: center; align-content: center; gap: 1cqw; }
+.clock .who { font-family: var(--font-display); font-size: 3.4cqw; }
+.clock .who b { color: var(--accent); font-weight: 400; }
+.clock .digits { font-family: var(--font-num); font-weight: 700; font-size: 13cqw; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.clock .digits.eating { color: var(--ok); font-family: var(--font-display); font-weight: 400; font-size: 10cqw; }
+.clock .sub { font-size: 2.3cqw; color: var(--muted); }
+.now-eating {
+  display: flex; gap: 1.2cqw; align-items: center; flex-wrap: nowrap; overflow: hidden;
+  font-size: 2.1cqw; border-top: .3cqw dashed var(--line); padding-top: 1.4cqw;
+}
+.now-eating .k { flex: none; font-family: var(--font-display); color: var(--muted); }
+.now-eating .chip { flex: none; background: var(--well); padding: .2cqw 1.2cqw; border-radius: 99px; }
+
+/* ── 식판 아래 물리 버튼 ── */
+.ctrl { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 6px; }
+.ctrl button {
+  font-family: var(--font-display); font-size: 16px; color: #2b3330;
+  min-width: 44px; height: 36px; border-radius: 99px; border: 0; cursor: pointer;
+  background: linear-gradient(var(--steel-hi), var(--steel-lo));
+  box-shadow: 0 2px 0 var(--steel-edge), inset 0 1px 0 rgba(255,255,255,.7);
+}
+.ctrl button:active { transform: translateY(2px); box-shadow: 0 0 0 var(--steel-edge); }
+.dots { display: flex; gap: 8px; align-items: center; }
+.dots span { width: 9px; height: 9px; border-radius: 50%; background: var(--steel-edge); opacity: .45; transition: all .2s; }
+.dots span.on { width: 26px; border-radius: 99px; background: #2b3330; opacity: .9; }
+.pagename { font-size: 13px; color: #2b3330; font-family: var(--font-display); min-width: 7em; text-align: center; }
+
+/* ── 알레르기 경고 (가입 정보 연동 시) ── */
+.cell.warn { box-shadow: inset 0 0 0 .6cqw var(--accent); }
+.cell.warn .photo { filter: grayscale(.7) brightness(.85); }
+.warnbadge {
+  position: absolute; top: .8cqw; left: 1cqw; z-index: 2;
+  font-family: var(--font-display); font-size: 2cqw; color: #fff;
+  background: var(--accent); padding: .2cqw 1cqw; border-radius: 99px;
+}
+.row.is-warn .name { text-decoration: line-through; text-decoration-color: var(--accent); }
+.row .al b { color: var(--accent); font-weight: 700; }
+.row .ban { color: var(--accent); font-family: var(--font-display); font-size: 2cqw; margin-left: .6cqw; }
+
+/* ── 기기 + 알리미 앱 나란히 ── */
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 22px; align-items: start; }
+@media (max-width: 900px) { .stage { grid-template-columns: minmax(0, 1fr); } .phone { justify-self: center; } }
+.phone {
+  width: 100%; max-width: 320px; border-radius: 38px; padding: 12px;
+  background: #1d2321; box-shadow: 0 18px 40px -18px rgba(0,0,0,.5);
+}
+.app {
+  border-radius: 28px; overflow: hidden; background: var(--card); color: var(--fg);
+  min-height: 560px; display: grid; grid-template-rows: auto 1fr;
+}
+.app-head {
+  padding: 22px 18px 12px; display: flex; justify-content: space-between; align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+.app-head b { font-family: var(--font-display); font-weight: 400; font-size: 21px; }
+.app-head .pill { font-size: 11.5px; padding: 3px 10px; border-radius: 99px; background: var(--well); color: var(--muted); }
+.app-head .pill.on { background: var(--ok); color: #fff; }
+.app-body { padding: 16px 18px 20px; display: grid; gap: 14px; align-content: start; }
+.app-body h4 { font-family: var(--font-display); font-weight: 400; font-size: 16px; margin: 0; }
+.app-body .hint { font-size: 12px; color: var(--muted); margin: 0; line-height: 1.5; }
+.field { display: grid; gap: 4px; font-size: 13px; }
+.field input, .field select {
+  font: inherit; font-size: 15px; color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; width: 100%;
+}
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips label {
+  font-size: 12.5px; padding: 4px 10px; border-radius: 99px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--bg); user-select: none;
+}
+.chips input { position: absolute; opacity: 0; pointer-events: none; }
+.chips input:checked + span { color: #fff; }
+.chips label:has(input:checked) { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chips label:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13.5px; }
+.switch input { width: 20px; height: 20px; accent-color: var(--ok); }
+.btn {
+  font-family: var(--font-display); font-size: 17px; border: 0; border-radius: 12px; cursor: pointer;
+  padding: 11px; background: var(--fg); color: var(--bg);
+}
+.btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); font-size: 14px; padding: 8px; }
+.btn:focus-visible, .field input:focus-visible, .field select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.me { display: grid; gap: 2px; }
+.me .hi { font-family: var(--font-display); font-size: 22px; line-height: 1.2; }
+.me .sub { font-size: 13px; color: var(--muted); }
+.alert { border-radius: 14px; padding: 12px 14px; background: var(--well); font-size: 13.5px; display: grid; gap: 4px; }
+.alert.bad { background: color-mix(in srgb, var(--accent) 16%, var(--card)); }
+.alert strong { font-family: var(--font-display); font-weight: 400; font-size: 15px; }
+.shot { border-radius: 14px; overflow: hidden; border: 1px solid var(--line); }
+.shot img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.shot figcaption { font-size: 12px; color: var(--muted); padding: 6px 10px; display: flex; justify-content: space-between; gap: 8px; }
+.row-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* ── 제품 카드 ── */
+.card { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.card section { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+.card h3 { font-family: var(--font-display); font-weight: 400; font-size: 18px; margin: 0 0 4px; }
+.card p { margin: 0; font-size: 14px; color: var(--muted); }
+.note { font-size: 12.5px; color: var(--muted); margin: 0; }
+.credits { font-size: 12.5px; color: var(--muted); }
+.credits summary { cursor: pointer; font-family: var(--font-display); font-size: 15px; color: var(--fg); }
+.credits ul { margin: 8px 0 0; padding-left: 18px; columns: 2; column-gap: 24px; }
+.credits li { break-inside: avoid; margin-bottom: 4px; overflow-wrap: anywhere; }
+.credits a { color: inherit; }
+@media (max-width: 640px) { .card { grid-template-columns: 1fr; } .credits ul { columns: 1; } }
+@media (prefers-reduced-motion: reduce) { .spark, .kick .dish { animation: none; } .pages { scroll-behavior: auto; } }
+
+/* ── 설치형 앱(PWA) 전용 ── */
+body { padding-top: max(28px, env(safe-area-inset-top, 0px)); padding-bottom: max(48px, env(safe-area-inset-bottom, 0px)); }
+header.top { grid-template-columns: 1fr auto; align-items: end; }
+header.top .eyebrow, header.top h1 { grid-column: 1; }
+#install {
+  grid-column: 2; grid-row: 1 / span 2; align-self: center;
+  font-family: var(--font-display); font-size: 15px; border: 0; border-radius: 99px;
+  padding: 9px 16px; background: var(--accent); color: #fff; cursor: pointer;
+}
+/* 진짜 폰에서는 폰 테두리 목업을 빼고 앱 화면만 */
+@media (max-width: 560px), (display-mode: standalone) and (max-width: 900px) {
+  .phone { max-width: none; padding: 0; background: none; box-shadow: none; border-radius: 0; }
+  .app { border-radius: 18px; border: 1px solid var(--line); min-height: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <span class="eyebrow">진도구 珍道具 · 교육학세미나 시안</span>
+    <h1>급식 시간 알라미</h1>
+    <button type="button" id="install" hidden>앱 설치</button>
+  </header>
+
+  <div class="stage">
+  <div class="device">
+    <div class="screen">
+      <div class="status"><span id="st-date"></span><span id="st-time"></span></div>
+      <div class="pages" id="pages" tabindex="0" aria-label="식판 화면, 옆으로 넘겨서 보기">
+        <section class="page" aria-label="1. 오늘의 식판">
+          <span class="ai-tag" id="tray-tag">오늘의 식판</span>
+          <div class="tray" id="tray"></div>
+        </section>
+        <section class="page" aria-label="2. 메뉴와 오늘의 킥">
+          <div class="menu2">
+            <div class="list" id="list"></div>
+            <div class="kick" id="kick">
+              <span class="spark"></span><span class="spark"></span><span class="spark"></span><span class="spark"></span>
+              <div>
+                <span class="badge" id="kick-badge">AI 선정 · 오늘의 킥</span>
+                <div class="dish" id="kick-dish"></div>
+                <div class="comment" id="kick-comment"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="page" aria-label="3. 우리 반 급식 타이머">
+          <div class="timer">
+            <div class="pick">
+              <div class="seg" role="group" aria-label="학년">
+                <button type="button" id="g1" data-g="1">1학년</button>
+                <button type="button" id="g2" data-g="2">2학년</button>
+                <button type="button" id="g3" data-g="3">3학년</button>
+              </div>
+              <select class="cls" id="cls" aria-label="반"></select>
+            </div>
+            <div class="clock">
+              <div class="who" id="who"></div>
+              <div class="digits" id="digits">--:--:--</div>
+              <div class="sub" id="sub"></div>
+            </div>
+            <div class="now-eating"><span class="k">지금 먹는 반</span><span id="eating-list"></span></div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="ctrl">
+      <button type="button" id="prev" aria-label="이전 화면">◀</button>
+      <div class="dots" id="dots"><span></span><span></span><span></span></div>
+      <span class="pagename" id="pagename"></span>
+      <button type="button" id="next" aria-label="다음 화면">▶</button>
+    </div>
+  </div>
+
+  <aside class="phone" aria-label="급식 알리미 앱">
+    <div class="app">
+      <div class="app-head"><b>급식 알리미</b><span class="pill" id="link-pill">연동 안 됨</span></div>
+
+      <form class="app-body" id="signup">
+        <div>
+          <h4>가입하기</h4>
+          <p class="hint">학년·반과 알레르기를 넣어두면 식판 기기가 나에게 맞춰져요.</p>
+        </div>
+        <label class="field">이름
+          <input id="f-name" type="text" maxlength="10" placeholder="예: 김작당" autocomplete="off">
+        </label>
+        <div class="two">
+          <label class="field">학년<select id="f-grade"><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select></label>
+          <label class="field">반<select id="f-class"></select></label>
+        </div>
+        <div class="field">알레르기 (해당하는 것 모두)
+          <div class="chips" id="f-al"></div>
+        </div>
+        <label class="switch">식판 기기와 연동하기<input id="f-link" type="checkbox" checked></label>
+        <button class="btn" type="submit">가입하고 연동하기</button>
+        <p class="hint">입력한 정보는 서버로 보내지 않고 이 기기에만 저장돼요.</p>
+      </form>
+
+      <div class="app-body" id="profile" hidden>
+        <div class="me"><span class="hi" id="p-hi"></span><span class="sub" id="p-sub"></span></div>
+        <div class="alert" id="p-alert"></div>
+        <figure class="shot" style="margin:0">
+          <img src="img/baesik.jpg" alt="스테인리스 식판에 담긴 오늘 배식 사진">
+          <figcaption><span>오늘 배식 사진</span><span>학교 알리미 연동</span></figcaption>
+        </figure>
+        <div class="row-btns">
+          <button class="btn ghost" type="button" id="p-edit">정보 수정</button>
+          <button class="btn ghost" type="button" id="p-out">연동 해제</button>
+        </div>
+      </div>
+    </div>
+  </aside>
+  </div>
+
+  <div class="card">
+    <section>
+      <h3>해결하려던 불편</h3>
+      <p>휴대폰은 아침에 걷어 간다. 그런데 4교시 내내 궁금한 건 오늘 메뉴와 우리 반 급식 시간뿐이다.</p>
+    </section>
+    <section>
+      <h3>진지한 해결</h3>
+      <p>폰 대신 급식 전용 기기를 지급한다. 넘기면 메뉴 사진, AI가 고른 오늘의 킥, 우리 반까지 남은 시간이 나온다. 집에서는 알리미 앱에 가입해 학년·반·알레르기를 넣으면 기기가 나에게 맞춰진다.</p>
+    </section>
+    <section>
+      <h3>그런데 계속 쓰면</h3>
+      <p>기기가 식판 모양이라 하루 종일 책상 위에 식판이 놓여 있다. 정작 급식 시간에는 전자기기라 밥을 담을 수 없다.</p>
+    </section>
+  </div>
+  <p class="note">시안용 가상 학교 데이터입니다. 메뉴와 급식 시간은 예시이고, 식판 칸 사진은 위키미디어 공용에서 검색한 자유 라이선스 사진입니다. 화면을 옆으로 밀거나 ◀ ▶ 버튼, 키보드 화살표로 넘길 수 있습니다. 오른쪽 알리미 앱에서 가입하면 식판 화면이 바로 바뀝니다(입력 정보는 이 기기에만 저장).</p>
+  <details class="credits">
+    <summary>사진 출처 (위키미디어 공용)</summary>
+    <ul id="credits"><li>현미밥: <a href="https://commons.wikimedia.org/wiki/File:Bowl_of_Cooked_Brown_Rice.jpg" target="_blank" rel="noopener">Bowl of Cooked Brown Rice.jpg</a> · Ceeseven · CC BY-SA 4.0</li><li>돼지고기김치찌개: <a href="https://commons.wikimedia.org/wiki/File:Korean.cuisine-Kimchi_jjigae-01.jpg" target="_blank" rel="noopener">Korean.cuisine-Kimchi jjigae-01.jpg</a> · by avlxyz · CC BY-SA 2.0</li><li>돈육장조림: <a href="https://commons.wikimedia.org/wiki/File:Jangjorim.jpg" target="_blank" rel="noopener">Jangjorim.jpg</a> · Hyeon-Jeong Suk · CC BY 2.0</li><li>콩나물무침: <a href="https://commons.wikimedia.org/wiki/File:Kongnamul_muchim_(soybean_sprouts).jpg" target="_blank" rel="noopener">Kongnamul muchim (soybean sprouts).jpg</a> · 딸기맘양갱이 · CC BY-SA 2.5</li><li>배추김치: <a href="https://commons.wikimedia.org/wiki/File:Baechu-kimchi_%EB%B0%B0%EC%B6%94%EA%B9%80%EC%B9%98H.jpg" target="_blank" rel="noopener">Baechu-kimchi 배추김치H.jpg</a> · 작자 미상 · CC BY-SA 4.0</li><li>딸기요구르트: <a href="https://commons.wikimedia.org/wiki/File:A_bowl_of_frozen_yogurt.jpg" target="_blank" rel="noopener">A bowl of frozen yogurt.jpg</a> · JacquesDemien · CC0</li><li>기장밥: <a href="https://commons.wikimedia.org/wiki/File:COOKED_MILLET_RICE_01.jpg" target="_blank" rel="noopener">COOKED MILLET RICE 01.jpg</a> · Nandhinikandhasamy · CC BY-SA 4.0</li><li>순두부찌개: <a href="https://commons.wikimedia.org/wiki/File:Korean_stew-Sundubu_jjigae-05.jpg" target="_blank" rel="noopener">Korean stew-Sundubu jjigae-05.jpg</a> · by titanium22 · CC BY-SA 2.0</li><li>왕돈가스: <a href="https://commons.wikimedia.org/wiki/File:Miso_tonkatsu_at_Toyota_Automobile_Museum_cafe_2022.jpg" target="_blank" rel="noopener">Miso tonkatsu at Toyota Automobile Museum cafe 2022.jpg</a> · Masahiko OHKUBO · CC BY 2.0</li><li>문어브로콜리숙회: <a href="https://commons.wikimedia.org/wiki/File:Muneo-broccoli-sukhoe.jpg" target="_blank" rel="noopener">Muneo-broccoli-sukhoe.jpg</a> · 최광모 · CC BY-SA 4.0</li><li>깍두기: <a href="https://commons.wikimedia.org/wiki/File:Korean.food-kkakdugi-01.jpg" target="_blank" rel="noopener">Korean.food-kkakdugi-01.jpg</a> · by milkchug (a flickr user) · CC BY 2.0</li><li>초코우유: <a href="https://commons.wikimedia.org/wiki/File:Drinking_chocolate,_Portland.jpg" target="_blank" rel="noopener">Drinking chocolate, Portland.jpg</a> · Tammy · CC BY 2.0</li><li>흑미밥: <a href="https://commons.wikimedia.org/wiki/File:Heukmibap_(black_rice).jpg" target="_blank" rel="noopener">Heukmibap (black rice).jpg</a> · Hyeon-Jeong Suk · CC BY 2.0</li><li>쇠고기미역국: <a href="https://commons.wikimedia.org/wiki/File:Korea.food-Miyeok.guk-01.jpg" target="_blank" rel="noopener">Korea.food-Miyeok.guk-01.jpg</a> · User:Feth · CC BY-SA 2.0</li><li>제육볶음: <a href="https://commons.wikimedia.org/wiki/File:Jeyuk-bokkeum_2.jpg" target="_blank" rel="noopener">Jeyuk-bokkeum 2.jpg</a> · 국립국어원 · CC BY-SA 2.0 kr</li><li>시금치나물: <a href="https://commons.wikimedia.org/wiki/File:Sigeumchi-namul_2.jpg" target="_blank" rel="noopener">Sigeumchi-namul 2.jpg</a> · Hyeon-Jeong Suk · CC BY 2.0</li><li>귤: <a href="https://commons.wikimedia.org/wiki/File:Mandarin_Oranges_(Citrus_Reticulata).jpg" target="_blank" rel="noopener">Mandarin Oranges (Citrus Reticulata).jpg</a> · Joe Ravi · CC BY-SA 3.0</li><li>잡곡밥: <a href="https://commons.wikimedia.org/wiki/File:Japgok-bap.jpg" target="_blank" rel="noopener">Japgok-bap.jpg</a> · Dr 방원장 · CC BY 4.0</li><li>닭강정: <a href="https://commons.wikimedia.org/wiki/File:Dak-gangjeong_5.jpg" target="_blank" rel="noopener">Dak-gangjeong 5.jpg</a> · Debbie Tingzon · CC BY 2.0</li><li>오이무침: <a href="https://commons.wikimedia.org/wiki/File:Oi_Muchim_%EC%98%A4%EC%9D%B4%EB%AC%B4%EC%B9%A81.jpg" target="_blank" rel="noopener">Oi Muchim 오이무침1.jpg</a> · 작자 미상 · CC BY-SA 4.0</li><li>짜장밥: <a href="https://commons.wikimedia.org/wiki/File:Jajang_rice.jpg" target="_blank" rel="noopener">Jajang rice.jpg</a> · 샤르르샤벳 · CC BY 4.0</li><li>짬뽕국: <a href="https://commons.wikimedia.org/wiki/File:Jjamppong_(Korean_Chines_seafood_noodle_soup).jpg" target="_blank" rel="noopener">Jjamppong (Korean Chines seafood noodle soup).jpg</a> · Jungyeon · CC0</li><li>탕수육: <a href="https://commons.wikimedia.org/wiki/File:Tangsuyuk_(Korean_Chinese_sweet_and_sour_pork).jpg" target="_blank" rel="noopener">Tangsuyuk (Korean Chinese sweet and sour pork).jpg</a> · 용스토리 · CC BY 4.0</li><li>단무지무침: <a href="https://commons.wikimedia.org/wiki/File:Takuan.jpg" target="_blank" rel="noopener">Takuan.jpg</a> · Alice Wiegand, (Lyzzy) · CC BY-SA 3.0</li><li>망고푸딩: <a href="https://commons.wikimedia.org/wiki/File:Mango_pudding.JPG" target="_blank" rel="noopener">Mango pudding.JPG</a> · Terence · CC BY 2.5</li><li>어묵국: <a href="https://commons.wikimedia.org/wiki/File:Eomuk-tang_2.jpg" target="_blank" rel="noopener">Eomuk-tang 2.jpg</a> · bigtorica · CC0</li><li>슈크림빵: <a href="https://commons.wikimedia.org/wiki/File:Cream_puff_(cropped_and_edited).jpg" target="_blank" rel="noopener">Cream puff (cropped and edited).jpg</a> · Stu Spivack · CC BY 2.0</li><li>오늘 배식 사진(알리미 앱): <a href="https://commons.wikimedia.org/wiki/File:A_South_Korean_school_lunch.jpg" target="_blank" rel="noopener">A South Korean school lunch.jpg</a> · 570cjk · CC BY-SA 3.0</li></ul>
+  </details>
+</div>
+
+<script>
+// 음식 그림 프리셋: pattern + 세 가지 색
+const LOOK = {
+  rice:     ['grain',   '#fbf8ee', '#efe8d6', '#ffffff'],
+  millet:   ['grain',   '#fbf6e2', '#f1dd8f', '#ffffff'],
+  brown:    ['grain',   '#f3ead8', '#c9a77a', '#fffaf0'],
+  black:    ['grain',   '#efe7ea', '#5b3a52', '#f7f1f3'],
+  jjajang:  ['chunks',  '#3a2618', '#2a1a10', '#f4efe2'],
+  redsoup:  ['liquid',  '#e8643a', '#b8361a', '#fff3e6'],
+  tofusoup: ['liquid',  '#ea6d3f', '#bf3e1d', '#fffbf0'],
+  seaweed:  ['liquid',  '#6b6a3a', '#3e4a24', '#2f3b1a'],
+  clear:    ['liquid',  '#f1d79a', '#d9a95a', '#f6e9d0'],
+  meat:     ['chunks',  '#7a3b22', '#5a2a16', '#9b5a34'],
+  jeyuk:    ['chunks',  '#c4421f', '#9a2e14', '#e4743f'],
+  fried:    ['chunks',  '#d99a3c', '#b8742a', '#f3c46b'],
+  gangjeong:['chunks',  '#b5481e', '#8f3414', '#e07b3b'],
+  green:    ['strands', '#3f7a32', '#2b5a22', '#5e9a46'],
+  broccoli: ['chunks',  '#3f8a3a', '#2c6a2a', '#7fb46a'],
+  sprout:   ['strands', '#f5ecc2', '#e2d48a', '#f9f3dc'],
+  cucumber: ['strands', '#7fb15a', '#c43a26', '#e8f0d4'],
+  kimchi:   ['strands', '#d4492a', '#f3d7b0', '#e86a3c'],
+  kkakdugi: ['chunks',  '#e2603a', '#f2c9a4', '#d9482a'],
+  yellow:   ['strands', '#f2d43a', '#e2b820', '#f8e888'],
+  yogurt:   ['round',   '#f7c5d2', '#e48aa3', '#fde8ee'],
+  choco:    ['round',   '#8a5a3c', '#5a3622', '#e9dccf'],
+  orange:   ['round',   '#f59a24', '#d9750e', '#fde3b8'],
+  bread:    ['round',   '#e9b866', '#c48a3c', '#f8e6c2'],
+  pudding:  ['round',   '#ffc94a', '#f0a51c', '#fff1c4'],
+};
+
+// 요일별 중식 (1=월 … 5=금). 순서: 밥, 국, 주찬, 부찬, 김치, 후식. a = 알레르기 번호, s = AI 맛있음 지수
+const WEEK = {
+  1: [ {n:'현미밥', l:'brown', a:'', s:58}, {n:'돼지고기김치찌개', l:'redsoup', a:'5.9.10', s:81},
+       {n:'돈육장조림', l:'meat', a:'5.6.10.13', s:86}, {n:'콩나물무침', l:'sprout', a:'5', s:44},
+       {n:'배추김치', l:'kimchi', a:'9', s:40}, {n:'딸기요구르트', l:'yogurt', a:'2', s:72} ],
+  2: [ {n:'기장밥', l:'millet', a:'', s:57}, {n:'순두부찌개', l:'tofusoup', a:'5.9', s:74},
+       {n:'왕돈가스', l:'fried', a:'1.2.5.6.10.12', s:97}, {n:'문어브로콜리숙회', l:'broccoli', a:'5.13', s:31},
+       {n:'깍두기', l:'kkakdugi', a:'9', s:42}, {n:'초코우유', l:'choco', a:'2', s:79} ],
+  3: [ {n:'흑미밥', l:'black', a:'', s:60}, {n:'쇠고기미역국', l:'seaweed', a:'5.16', s:66},
+       {n:'제육볶음', l:'jeyuk', a:'5.6.10.13', s:94}, {n:'시금치나물', l:'green', a:'5', s:38},
+       {n:'배추김치', l:'kimchi', a:'9', s:40}, {n:'귤', l:'orange', a:'', s:63} ],
+  4: [ {n:'잡곡밥', l:'millet', a:'', s:55}, {n:'어묵국', l:'clear', a:'1.5.6', s:70},
+       {n:'닭강정', l:'gangjeong', a:'5.6.13.15', s:96}, {n:'오이무침', l:'cucumber', a:'5.13', s:35},
+       {n:'깍두기', l:'kkakdugi', a:'9', s:42}, {n:'슈크림빵', l:'bread', a:'1.2.5.6', s:83} ],
+  5: [ {n:'짜장밥', l:'jjajang', a:'5.6.10', s:88}, {n:'짬뽕국', l:'redsoup', a:'5.6.9.17.18', s:84},
+       {n:'탕수육', l:'fried', a:'1.5.6.10.12', s:98}, {n:'단무지무침', l:'yellow', a:'5.13', s:41},
+       {n:'배추김치', l:'kimchi', a:'9', s:40}, {n:'망고푸딩', l:'pudding', a:'2', s:77} ],
+};
+// 메뉴 사진: 위키미디어 공용에서 검색한 자유 라이선스 사진 (img/ 폴더, 출처는 CREDITS)
+const IMG = {
+  '현미밥':'brown', '돼지고기김치찌개':'kimchijjigae', '돈육장조림':'jangjorim', '콩나물무침':'kongnamul',
+  '배추김치':'kimchi', '딸기요구르트':'yogurt', '기장밥':'millet', '순두부찌개':'sundubu',
+  '왕돈가스':'donkatsu', '문어브로콜리숙회':'broccoli', '깍두기':'kkakdugi', '초코우유':'choco',
+  '흑미밥':'black', '쇠고기미역국':'miyeokguk', '제육볶음':'jeyuk', '시금치나물':'sigeumchi', '귤':'gyul',
+  '잡곡밥':'sorghum', '어묵국':'eomukguk', '닭강정':'dakgangjeong', '오이무침':'oimuchim', '슈크림빵':'creampuff',
+  '짜장밥':'jjajang', '짬뽕국':'jjamppong', '탕수육':'tangsuyuk', '단무지무침':'danmuji', '망고푸딩':'pudding',
+};
+const KICK_NOTE = {
+  1: '달고 짭조름한 장조림은 밥 두 공기 각입니다. 4교시 집중력 -35% 예상.',
+  2: '얼굴만 한 크기에 소스가 듬뿍입니다. 4교시 집중력 -61% 예상.',
+  3: '수요일 오후를 버티게 하는 매운맛입니다. 상추가 없다는 점만 아쉽습니다.',
+  4: '바삭함과 끈적함을 동시에 갖춘 메뉴입니다. 줄이 평소보다 1.8배 길어질 예정.',
+  5: '부먹 찍먹 논쟁으로 점심시간이 부족할 수 있습니다. 4교시 집중력 -70% 예상.',
+};
+const DAY = ['일','월','화','수','목','금','토'];
+
+// 학년·반별 급식 시작 시간 (가상 학교): 3학년부터 먹는다
+const SLOT = { 3: ['12:10','12:15'], 2: ['12:25','12:30'], 1: ['12:40','12:45'] };
+const CLASSES = 8, LUNCH_MIN = 25;
+const startOf = (g, c) => SLOT[g][c <= 4 ? 0 : 1];
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2, '0');
+
+function menuDay(now) {
+  const d = now.getDay();
+  if (d >= 1 && d <= 5) return { d, label: `${now.getMonth()+1}월 ${now.getDate()}일 (${DAY[d]}) 중식` };
+  return { d: 1, label: '주말엔 급식이 없어요 · 월요일 미리보기' };
+}
+// 알레르기 유발 식품 번호 (급식 식단표 표기 1~19)
+const ALLERGENS = ['난류','우유','메밀','땅콩','대두','밀','고등어','게','새우','돼지고기',
+  '복숭아','토마토','아황산류','호두','닭고기','쇠고기','오징어','조개류','잣'];
+
+// 알리미 앱 가입 정보: { name, g, c, al:[번호], link }
+let P = null;
+try { P = JSON.parse(localStorage.getItem('lunch-profile') || 'null'); } catch (e) {}
+const linked = () => !!(P && P.link);
+const hitsOf = it => linked() && it.a ? it.a.split('.').map(Number).filter(n => P.al.includes(n)) : [];
+// 받침 있으면 a, 없으면 b (이지만/지만, 을/를)
+const josa = (w, a, b) => { const c = w.charCodeAt(w.length - 1) - 0xAC00; return c >= 0 && c <= 11171 && c % 28 ? a : b; };
+const alName = ns => ns.map(n => ALLERGENS[n - 1]).join('·');
+
+function kickIndex(items, skip = () => false) {
+  let best = -1;
+  items.forEach((it, i) => {
+    if (i === 0 || i === 4 || skip(it)) return;
+    if (best < 0 || it.s > items[best].s) best = i;
+  });
+  return best < 0 ? 1 : best;
+}
+
+function renderMenu() {
+  const { d, label } = menuDay(new Date());
+  const items = WEEK[d], base = kickIndex(items);
+  const k = kickIndex(items, it => hitsOf(it).length > 0);
+  $('tray-tag').textContent = linked() ? `${P.name}님의 식판 · ${label}` : `오늘의 식판 · ${label}`;
+  // 식판: 위 4칸(주찬·부찬·김치·후식), 아래 2칸(밥·국)
+  const order = [2, 3, 4, 5, 0, 1];
+  $('tray').innerHTML = order.map(i => {
+    const it = items[i], [pat, c1, c2, c3] = LOOK[it.l];
+    const hits = hitsOf(it);
+    const cls = (i === 0 ? 'cell rice' : i === 1 ? 'cell soup' : 'cell') + (hits.length ? ' warn' : '');
+    // 사진이 없거나 못 불러오면 그린 그림으로 대체
+    const photo = IMG[it.n] ? `<img class="photo" src="img/${IMG[it.n]}.jpg" alt="${it.n}" onerror="this.remove()">` : '';
+    return `<div class="${cls}"><div class="food ${pat}" style="--c1:${c1};--c2:${c2};--c3:${c3}"></div>${photo}`
+      + (hits.length ? `<span class="warnbadge">⚠ ${alName(hits)}</span>` : '')
+      + (i === k ? '<span class="crown">킥</span>' : '')
+      + `<span class="label">${it.n}</span></div>`;
+  }).join('');
+  $('list').innerHTML = `<h2>${label.replace(' 중식', '')}</h2>` + items.map((it, i) => {
+    const hits = hitsOf(it);
+    const al = it.a ? it.a.split('.').map(n => hits.includes(+n) ? `<b>${n}</b>` : n).join('.') : '';
+    return `<div class="row${i === k ? ' is-kick' : ''}${hits.length ? ' is-warn' : ''}"><span><span class="name">${it.n}</span>`
+      + (al ? `<span class="al">${al}</span>` : '') + (hits.length ? '<span class="ban">못 먹음</span>' : '') + '</span>'
+      + `<span class="score">${it.s}</span><span class="bar"><i style="width:${it.s}%"></i></span></div>`;
+  }).join('') + '<div class="foot">숫자는 알레르기 유발 식품 번호 · 오른쪽은 AI 맛있음 지수</div>';
+  $('kick-badge').textContent = linked() ? `AI 선정 · ${P.name}님의 킥` : 'AI 선정 · 오늘의 킥';
+  $('kick-dish').textContent = items[k].n;
+  const note = k === base ? KICK_NOTE[d]
+    : `오늘 1등은 ${items[base].n}${josa(items[base].n, '이지만', '지만')} ${alName(hitsOf(items[base]))} 때문에 빼고 ${items[k].n}${josa(items[k].n, '을', '를')} 골랐어요.`;
+  $('kick-comment').innerHTML = `${note}<span class="who">급식 알라미 AI의 한마디</span>`;
+  renderApp(items);
+}
+
+// 알리미 앱
+for (let c = 1; c <= CLASSES; c++) $('f-class').insertAdjacentHTML('beforeend', `<option value="${c}">${c}반</option>`);
+$('f-al').innerHTML = ALLERGENS.map((a, i) =>
+  `<label><input type="checkbox" id="al-${i + 1}" value="${i + 1}"><span>${i + 1}. ${a}</span></label>`).join('');
+
+function fillForm() {
+  const p = P || { name: '', g: grade, c: cls, al: [], link: true };
+  $('f-name').value = p.name; $('f-grade').value = String(p.g); $('f-class').value = String(p.c);
+  $('f-link').checked = p.link;
+  ALLERGENS.forEach((_, i) => { $('al-' + (i + 1)).checked = p.al.includes(i + 1); });
+}
+function renderApp(items) {
+  const on = linked();
+  $('link-pill').textContent = on ? '식판 연동됨' : '연동 안 됨';
+  $('link-pill').classList.toggle('on', on);
+  $('signup').hidden = !!P; $('profile').hidden = !P;
+  if (!P) return;
+  $('p-hi').textContent = `${P.name}님, 안녕하세요`;
+  $('p-sub').textContent = `${P.g}학년 ${P.c}반 · 급식 ${startOf(P.g, P.c).replace(':', '시 ')}분`
+    + (P.al.length ? ` · 알레르기 ${alName(P.al)}` : '');
+  const bad = items.filter(it => hitsOf(it).length);
+  const box = $('p-alert');
+  box.classList.toggle('bad', bad.length > 0);
+  box.innerHTML = !on ? '<strong>식판 연동이 꺼져 있어요</strong><span>정보 수정에서 연동을 켜면 알레르기 알림이 와요.</span>'
+    : bad.length ? `<strong>오늘 못 먹는 메뉴 ${bad.length}개</strong>` + bad.map(it => `<span>${it.n} (${alName(hitsOf(it))})</span>`).join('')
+    : '<strong>오늘은 다 먹을 수 있어요</strong><span>알레르기 성분이 든 메뉴가 없어요.</span>';
+}
+function saveProfile(p) {
+  P = p;
+  try { p ? localStorage.setItem('lunch-profile', JSON.stringify(p)) : localStorage.removeItem('lunch-profile'); } catch (e) {}
+  if (linked()) setClass(P.g, P.c);
+  renderMenu();
+}
+$('signup').addEventListener('submit', e => {
+  e.preventDefault();
+  saveProfile({
+    name: $('f-name').value.trim() || '학생',
+    g: +$('f-grade').value, c: +$('f-class').value,
+    al: ALLERGENS.map((_, i) => i + 1).filter(n => $('al-' + n).checked),
+    link: $('f-link').checked,
+  });
+});
+$('p-edit').addEventListener('click', () => { fillForm(); $('signup').hidden = false; $('profile').hidden = true; });
+$('p-out').addEventListener('click', () => { saveProfile(null); fillForm(); });
+
+// 타이머
+let grade = 1, cls = 1;
+try { const s = JSON.parse(localStorage.getItem('lunch-class') || 'null'); if (s) { grade = s.g; cls = s.c; } } catch (e) {}
+const sel = $('cls');
+for (let c = 1; c <= CLASSES; c++) sel.insertAdjacentHTML('beforeend', `<option value="${c}">${c}반</option>`);
+
+function setClass(g, c) {
+  grade = g; cls = c; sel.value = String(c);
+  [1, 2, 3].forEach(n => $('g' + n).setAttribute('aria-pressed', String(n === g)));
+  try { localStorage.setItem('lunch-class', JSON.stringify({ g, c })); } catch (e) {}
+  tick();
+}
+document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => setClass(+b.dataset.g, cls)));
+sel.addEventListener('change', () => setClass(grade, +sel.value));
+
+function at(day, hm) { const [h, m] = hm.split(':').map(Number); const t = new Date(day); t.setHours(h, m, 0, 0); return t; }
+function nextLunch(now, g, c) {
+  const hm = startOf(g, c);
+  for (let add = 0; add < 8; add++) {
+    const day = new Date(now); day.setDate(now.getDate() + add);
+    const wd = day.getDay();
+    if (wd === 0 || wd === 6) continue;
+    const s = at(day, hm), e = new Date(s.getTime() + LUNCH_MIN * 60000);
+    if (now < e) return { s, e, eating: now >= s, today: add === 0 };
+  }
+}
+function tick() {
+  const now = new Date();
+  $('st-date').textContent = `${now.getMonth()+1}.${pad(now.getDate())} ${DAY[now.getDay()]}`;
+  $('st-time').textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+  const hm = startOf(grade, cls), L = nextLunch(now, grade, cls);
+  const mine = linked() && P.g === grade && P.c === cls ? `${P.name}님 · ` : '';
+  $('who').innerHTML = `${mine}${grade}학년 ${cls}반 → <b>${hm.replace(':', '시 ')}분</b>`;
+  const dg = $('digits');
+  if (L.eating) {
+    dg.className = 'digits eating'; dg.textContent = '지금 먹는 중!';
+    const left = Math.ceil((L.e - now) / 60000);
+    $('sub').textContent = `급식 시간 ${left}분 남음 · 천천히 꼭꼭 씹기`;
+  } else {
+    let sec = Math.max(0, Math.floor((L.s - now) / 1000));
+    const h = Math.floor(sec / 3600); sec %= 3600;
+    dg.className = 'digits';
+    dg.textContent = `${pad(h)}:${pad(Math.floor(sec / 60))}:${pad(sec % 60)}`;
+    $('sub').textContent = L.today ? '우리 반 급식까지 남은 시간'
+      : `다음 급식: ${L.s.getMonth()+1}월 ${L.s.getDate()}일 (${DAY[L.s.getDay()]})`;
+  }
+  // 지금 먹는 반
+  const wd = now.getDay(), eating = [];
+  if (wd >= 1 && wd <= 5) {
+    [3, 2, 1].forEach(g => SLOT[g].forEach((t, half) => {
+      const s = at(now, t), e = new Date(s.getTime() + LUNCH_MIN * 60000);
+      if (now >= s && now < e) eating.push(`${g}학년 ${half ? '5~8' : '1~4'}반`);
+    }));
+  }
+  $('eating-list').innerHTML = eating.length ? eating.map(x => `<span class="chip">${x}</span>`).join(' ')
+    : '<span class="chip">아직 아무도 안 먹는 중</span>';
+}
+
+// 스와이프 페이지
+const pages = $('pages'), dots = [...$('dots').children];
+const NAMES = ['오늘의 식판', '메뉴 · 오늘의 킥', '우리 반 타이머'];
+let cur = 0;
+function go(i) { cur = Math.max(0, Math.min(2, i)); pages.scrollTo({ left: cur * pages.clientWidth }); mark(); }
+function mark() {
+  dots.forEach((d, i) => d.classList.toggle('on', i === cur));
+  $('pagename').textContent = `${cur + 1}/3 ${NAMES[cur]}`;
+}
+pages.addEventListener('scroll', () => {
+  const i = Math.round(pages.scrollLeft / pages.clientWidth);
+  if (i !== cur && !pages.classList.contains('dragging')) { cur = i; mark(); }
+}, { passive: true });
+$('prev').addEventListener('click', () => go(cur - 1));
+$('next').addEventListener('click', () => go(cur + 1));
+pages.addEventListener('keydown', e => { if (e.key === 'ArrowRight') go(cur + 1); if (e.key === 'ArrowLeft') go(cur - 1); });
+window.addEventListener('resize', () => pages.scrollTo({ left: cur * pages.clientWidth, behavior: 'instant' }));
+
+// 마우스로 끌어 넘기기 (터치는 기본 스크롤이 처리)
+let drag = null;
+pages.addEventListener('pointerdown', e => {
+  if (e.pointerType !== 'mouse' || e.target.closest('button, select')) return;
+  drag = { x: e.clientX, left: pages.scrollLeft };
+  pages.classList.add('dragging'); pages.setPointerCapture(e.pointerId);
+});
+pages.addEventListener('pointermove', e => { if (drag) pages.scrollLeft = drag.left - (e.clientX - drag.x); });
+const endDrag = e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.x; drag = null;
+  pages.classList.remove('dragging');
+  go(Math.abs(dx) > 40 ? cur + (dx < 0 ? 1 : -1) : cur);
+};
+pages.addEventListener('pointerup', endDrag);
+pages.addEventListener('pointercancel', endDrag);
+
+if (linked()) { grade = P.g; cls = P.c; }
+fillForm(); renderMenu(); setClass(grade, cls); mark();
+setInterval(tick, 1000);
+</script>
+<script>
+// 설치형 앱: 오프라인 실행용 서비스 워커 + 설치 버튼
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('install').hidden = false; });
+$('install').addEventListener('click', async () => {
+  if (!installEvt) return;
+  installEvt.prompt(); await installEvt.userChoice; installEvt = null; $('install').hidden = true;
+});
+window.addEventListener('appinstalled', () => { $('install').hidden = true; });
+</script>
+</body>
+</html>
