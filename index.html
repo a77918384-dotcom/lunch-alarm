@@ -262,6 +262,13 @@ header.top h1 { font-family: var(--font-display); font-weight: 400; font-size: c
 .dots span.on { width: 26px; border-radius: 99px; background: #2b3330; opacity: .9; }
 .pagename { font-size: 13px; color: #2b3330; font-family: var(--font-display); min-width: 7em; text-align: center; }
 
+/* ── 실제 배식 사진 식판 ── */
+.tray.real { display: flex; justify-content: center; align-items: center; }
+.realtray { position: relative; height: 100%; border-radius: 3cqw; overflow: hidden; box-shadow: inset 0 0 0 .3cqw var(--steel-edge); }
+.realtray img { display: block; height: 100%; width: auto; max-width: none; }
+.spot { position: absolute; border-radius: 2.4cqw; }
+.spot.warn { box-shadow: inset 0 0 0 .6cqw var(--accent); background: rgba(40, 20, 10, .35); }
+
 /* ── 알레르기 경고 (가입 정보 연동 시) ── */
 .cell.warn { box-shadow: inset 0 0 0 .6cqw var(--accent); }
 .cell.warn .photo { filter: grayscale(.7) brightness(.85); }
@@ -511,15 +518,16 @@ const LOOK = {
 
 // 요일별 중식 (1=월 … 5=금). 순서: 밥, 국, 주찬, 부찬, 김치, 후식. a = 알레르기 번호, s = AI 맛있음 지수
 const WEEK = {
-  1: [ {n:'현미밥', l:'brown', a:'', s:58}, {n:'돼지고기김치찌개', l:'redsoup', a:'5.9.10', s:81},
-       {n:'돈육장조림', l:'meat', a:'5.6.10.13', s:86}, {n:'콩나물무침', l:'sprout', a:'5', s:44},
-       {n:'배추김치', l:'kimchi', a:'9', s:40}, {n:'딸기요구르트', l:'yogurt', a:'2', s:72} ],
-  2: [ {n:'기장밥', l:'millet', a:'', s:57}, {n:'순두부찌개', l:'tofusoup', a:'5.9', s:74},
+  // 월·화는 실제 배식 사진(img/baesik.jpg)과 같은 메뉴 (후식 없음)
+  1: [ {n:'쌀밥', l:'rice', a:'', s:55}, {n:'쇠고기미역국', l:'seaweed', a:'5.16', s:66},
+       {n:'제육볶음', l:'jeyuk', a:'5.6.10.13', s:94}, {n:'오이무침', l:'cucumber', a:'5.13', s:35},
+       {n:'배추김치', l:'kimchi', a:'9', s:40} ],
+  2: [ {n:'쌀밥', l:'rice', a:'', s:55}, {n:'쇠고기미역국', l:'seaweed', a:'5.16', s:66},
+       {n:'제육볶음', l:'jeyuk', a:'5.6.10.13', s:94}, {n:'오이무침', l:'cucumber', a:'5.13', s:35},
+       {n:'배추김치', l:'kimchi', a:'9', s:40} ],
+  3: [ {n:'기장밥', l:'millet', a:'', s:57}, {n:'순두부찌개', l:'tofusoup', a:'5.9', s:74},
        {n:'왕돈가스', l:'fried', a:'1.2.5.6.10.12', s:97}, {n:'문어브로콜리숙회', l:'broccoli', a:'5.13', s:31},
        {n:'깍두기', l:'kkakdugi', a:'9', s:42}, {n:'초코우유', l:'choco', a:'2', s:79} ],
-  3: [ {n:'흑미밥', l:'black', a:'', s:60}, {n:'쇠고기미역국', l:'seaweed', a:'5.16', s:66},
-       {n:'제육볶음', l:'jeyuk', a:'5.6.10.13', s:94}, {n:'시금치나물', l:'green', a:'5', s:38},
-       {n:'배추김치', l:'kimchi', a:'9', s:40}, {n:'귤', l:'orange', a:'', s:63} ],
   4: [ {n:'잡곡밥', l:'millet', a:'', s:55}, {n:'어묵국', l:'clear', a:'1.5.6', s:70},
        {n:'닭강정', l:'gangjeong', a:'5.6.13.15', s:96}, {n:'오이무침', l:'cucumber', a:'5.13', s:35},
        {n:'깍두기', l:'kkakdugi', a:'9', s:42}, {n:'슈크림빵', l:'bread', a:'1.2.5.6', s:83} ],
@@ -537,12 +545,27 @@ const IMG = {
   '짜장밥':'jjajang', '짬뽕국':'jjamppong', '탕수육':'tangsuyuk', '단무지무침':'danmuji', '망고푸딩':'pudding',
 };
 const KICK_NOTE = {
-  1: '달고 짭조름한 장조림은 밥 두 공기 각입니다. 4교시 집중력 -35% 예상.',
-  2: '얼굴만 한 크기에 소스가 듬뿍입니다. 4교시 집중력 -61% 예상.',
-  3: '수요일 오후를 버티게 하는 매운맛입니다. 상추가 없다는 점만 아쉽습니다.',
+  1: '빨간 양념이 밥 위로 흘러내리는 날입니다. 4교시 집중력 -58% 예상.',
+  2: '빨간 양념이 밥 위로 흘러내리는 날입니다. 4교시 집중력 -58% 예상.',
+  3: '얼굴만 한 크기에 소스가 듬뿍입니다. 4교시 집중력 -61% 예상.',
   4: '바삭함과 끈적함을 동시에 갖춘 메뉴입니다. 줄이 평소보다 1.8배 길어질 예정.',
   5: '부먹 찍먹 논쟁으로 점심시간이 부족할 수 있습니다. 4교시 집중력 -70% 예상.',
 };
+// 실제 배식 사진으로 보여주는 요일과, 사진 속 칸 위치(%: 왼쪽, 위, 너비, 높이). 키는 메뉴 순서(0 밥, 1 국, 2 주찬, 3 부찬, 4 김치)
+const REAL_TRAY = {
+  days: [1, 2], src: 'img/baesik.jpg',
+  spots: { 4: [2, 4, 29, 39], 2: [31, 2, 36, 46], 3: [67, 2, 30, 39], 0: [3, 46, 47, 52], 1: [52, 48, 45, 50] },
+};
+function realTray(items, k) {
+  return '<div class="realtray"><img src="' + REAL_TRAY.src + '" alt="오늘 배식 사진">'
+    + Object.entries(REAL_TRAY.spots).map(([i, [x, y, w, h]]) => {
+      const it = items[i], hits = hitsOf(it);
+      return `<div class="spot${hits.length ? ' warn' : ''}" style="left:${x}%;top:${y}%;width:${w}%;height:${h}%">`
+        + (hits.length ? `<span class="warnbadge">⚠ ${alName(hits)}</span>` : '')
+        + (+i === k ? '<span class="crown">킥</span>' : '')
+        + `<span class="label">${it.n}</span></div>`;
+    }).join('') + '</div>';
+}
 const DAY = ['일','월','화','수','목','금','토'];
 
 // 학년·반별 급식 시작 시간 (가상 학교): 3학년부터 먹는다
@@ -585,9 +608,11 @@ function renderMenu() {
   const items = WEEK[d], base = kickIndex(items);
   const k = kickIndex(items, it => hitsOf(it).length > 0);
   $('tray-tag').textContent = linked() ? `${P.name}님의 식판 · ${label}` : `오늘의 식판 · ${label}`;
-  // 식판: 위 4칸(주찬·부찬·김치·후식), 아래 2칸(밥·국)
+  // 실제 배식 사진이 있는 날은 사진 한 장, 없는 날은 칸별 사진(위 4칸 주찬·부찬·김치·후식, 아래 2칸 밥·국)
+  const real = REAL_TRAY.days.includes(d);
+  $('tray').classList.toggle('real', real);
   const order = [2, 3, 4, 5, 0, 1];
-  $('tray').innerHTML = order.map(i => {
+  $('tray').innerHTML = real ? realTray(items, k) : order.map(i => {
     const it = items[i], [pat, c1, c2, c3] = LOOK[it.l];
     const hits = hitsOf(it);
     const cls = (i === 0 ? 'cell rice' : i === 1 ? 'cell soup' : 'cell') + (hits.length ? ' warn' : '');
